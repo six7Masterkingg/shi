@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para mi eme 💖</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        #intro-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #13051e 0%, #000000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .card {
+            background: rgba(15, 5, 25, 0.9);
+            border: 2px solid #b026ff;
+            box-shadow: 0 0 45px rgba(176, 38, 255, 0.5), inset 0 0 20px rgba(176, 38, 255, 0.25);
+            border-radius: 26px;
+            padding: 26px;
+            max-width: 330px;
+            width: 90%;
+            text-align: center;
+            backdrop-filter: blur(12px);
+        }
+
+        .card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            object-position: top;
+            border-radius: 16px;
+            border: 1.5px solid rgba(176, 38, 255, 0.7);
+            box-shadow: 0 0 20px rgba(176, 38, 255, 0.4);
+            margin-bottom: 18px;
+        }
+
+        .card p {
+            font-size: 1.1rem;
+            line-height: 1.4;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(176, 38, 255, 0.9);
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        #accept-btn {
+            background: transparent;
+            color: #d8b4fe;
+            border: 2px solid #b026ff;
+            padding: 12px 32px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(176, 38, 255, 0.5), inset 0 0 10px rgba(176, 38, 255, 0.3);
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+
+        #accept-btn:hover {
+            background: #b026ff;
+            color: #ffffff;
+            box-shadow: 0 0 35px #b026ff, 0 0 70px #8b00ff;
+            transform: scale(1.06);
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen">
+        <div class="card">
+            <img src="miku.png" alt="Token" onerror="this.style.display='none'">
+            <p>"Si no encuentras el token, haré lo que sea para que lo encuentres"</p>
+            <button id="accept-btn">♡acepto♡</button>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x040008, 0.0018);
+
+        const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 1200);
+        camera.position.set(0, 18, 82);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enablePan = true;
+        controls.minDistance = 20;
+        controls.maxDistance = 200;
+        controls.enabled = false;
+
+        function createGlowTexture(innerColor, outerColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, innerColor);
+            gradient.addColorStop(0.3, outerColor);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const neonPurpleGlow = createGlowTexture('#ffffff', '#b026ff');
+        const neonMagentaGlow = createGlowTexture('#ff80df', '#9333ea');
+
+        const particleCount = 13000;
+        const particleGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const targetPositions = new Float32Array(particleCount * 3);
+        const tunnelData = [];
+        const explosionVelocities = [];
+
+        for (let i = 0; i < particleCount; i++) {
+            let tx, ty, tz;
+            if (i < 7500) {
+                const t = Math.random() * Math.PI * 2;
+                const u = Math.random();
+                const scale = 0.75 * Math.pow(u, 0.32);
+                tx = 16 * Math.pow(Math.sin(t), 3) * scale;
+                ty = (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t) + 3) * scale;
+                tz = (Math.random() - 0.5) * 6.5 * (1 - Math.abs(t - Math.PI) / Math.PI);
+            } else {
+                const r = 50 + Math.random() * 160;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                tx = r * Math.sin(phi) * Math.cos(theta);
+                ty = r * Math.sin(phi) * Math.sin(theta);
+                tz = r * Math.cos(phi);
+            }
+
+            targetPositions[i * 3] = tx;
+            targetPositions[i * 3 + 1] = ty;
+            targetPositions[i * 3 + 2] = tz;
+
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 5 + Math.random() * 60;
+            const zDepth = -220 + Math.random() * 270;
+            tunnelData.push({ angle, radius, zDepth, speed: 2.0 + Math.random() * 2.5 });
+
+            const dir = new THREE.Vector3(
+                (Math.random() - 0.5),
+                (Math.random() - 0.5),
+                (Math.random() - 0.5)
+            ).normalize();
+            const expSpeed = 80 + Math.random() * 200;
+            explosionVelocities.push({ x: dir.x * expSpeed, y: dir.y * expSpeed, z: dir.z * expSpeed });
+
+            positions[i * 3] = Math.cos(angle) * radius;
+            positions[i * 3 + 1] = Math.sin(angle) * radius;
+            positions[i * 3 + 2] = zDepth;
+        }
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 1.2,
+            map: neonPurpleGlow,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            opacity: 1
+        });
+        const heartSystem = new THREE.Points(particleGeometry, particleMaterial);
+        heartSystem.visible = false;
+        scene.add(heartSystem);
+
+        const universeGroup = new THREE.Group();
+        universeGroup.visible = false;
+        scene.add(universeGroup);
+
+        const galaxyGroup = new THREE.Group();
+        galaxyGroup.position.y = -6;
+        universeGroup.add(galaxyGroup);
+
+        const armsCount = 3;
+        for (let a = 0; a < armsCount; a++) {
+            const armStarsCount = 2000;
+            const armGeo = new THREE.BufferGeometry();
+            const armPos = new Float32Array(armStarsCount * 3);
+
+            for (let i = 0; i < armStarsCount; i++) {
+                const distanceRatio = i / armStarsCount;
+                const radius = distanceRatio * 75;
+                const angle = a * ((Math.PI * 2) / armsCount) + distanceRatio * Math.PI * 5 + (Math.random() - 0.5) * 0.3;
+                
+                armPos[i * 3] = Math.cos(angle) * radius;
+                armPos[i * 3 + 1] = (Math.random() - 0.5) * (3 * (1 - distanceRatio));
+                armPos[i * 3 + 2] = Math.sin(angle) * radius;
+            }
+
+            armGeo.setAttribute('position', new THREE.BufferAttribute(armPos, 3));
+            const armMat = new THREE.PointsMaterial({
+                size: 0.9,
+                map: a % 2 === 0 ? neonPurpleGlow : neonMagentaGlow,
+                transparent: true,
+                opacity: 0.75,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            galaxyGroup.add(new THREE.Points(armGeo, armMat));
+        }
+        galaxyGroup.rotation.x = 0.25;
+
+        const planetImages = ['planeta1.jpg', 'planeta2.jpg', 'planeta3.jpg', 'planeta4.jpg', 'planeta5.jpg', 'planeta6.jpg'];
+        const planets = [];
+
+        planetImages.forEach((imagePath, index) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const texture = new THREE.CanvasTexture(canvas);
+
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = imagePath;
+
+            img.onload = () => {
+                ctx.clearRect(0, 0, 512, 512);
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(256, 256, 225, 0, Math.PI * 2);
+                ctx.fillStyle = '#0a0212';
+                ctx.fill();
+                ctx.clip();
+
+                const aspect = img.width / img.height;
+                let dw = 450, dh = 450, ox = 31, oy = 31;
+                if (aspect > 1) {
+                    dw = 450 * aspect;
+                    ox = 256 - dw / 2;
+                } else {
+                    dh = 450 / aspect;
+                    oy = 256 - dh / 2;
+                }
+                ctx.drawImage(img, ox, oy, dw, dh);
+                ctx.restore();
+
+                ctx.beginPath();
+                ctx.arc(256, 256, 225, 0, Math.PI * 2);
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = '#b026ff';
+                ctx.stroke();
+
+                texture.needsUpdate = true;
+            };
+
+            img.onerror = () => {
+                ctx.clearRect(0, 0, 512, 512);
+                ctx.beginPath();
+                ctx.arc(256, 256, 225, 0, Math.PI * 2);
+                ctx.fillStyle = '#b026ff';
+                ctx.fill();
+                texture.needsUpdate = true;
+            };
+
+            const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.scale.set(8.2, 8.2, 1);
+            universeGroup.add(sprite);
+
+            const orbitRadius = 34 + index * 6.5;
+            planets.push({
+                mesh: sprite,
+                radius: orbitRadius,
+                angle: (index / 6) * Math.PI * 2,
+                speed: 0.0022 + (index % 3) * 0.0006,
+                yOffset: ((index % 3) - 1) * 5.0
+            });
+        });
+
+        // --- SISTEMA DE TOKENS GRANDES Y LIMPIOS (CON TRANSPARENCIA REAL PNG) ---
+        const tokenSprites = [];
+        const tokenDataList = [];
+        let tokensActive = false;
+        let globalAudio = null;
+
+        const textureLoader = new THREE.TextureLoader();
+        let tokenTexture = null;
+
+        textureLoader.load('token.png', (tex) => {
+            tokenTexture = tex;
+            tokenTexture.generateMipmaps = true;
+        }, undefined, (err) => {
+            console.log("Error cargando token.png:", err);
+        });
+
+        function startTokenShow() {
+            if (tokensActive) return;
+            tokensActive = true;
+
+            const totalTokens = 55; 
+            for (let i = 0; i < totalTokens; i++) {
+                const mat = new THREE.SpriteMaterial({ 
+                    map: tokenTexture, 
+                    transparent: true,
+                    depthWrite: false
+                });
+                const sprite = new THREE.Sprite(mat);
+                
+                const randomScale = 7.0 + Math.random() * 8.0;
+                sprite.scale.set(randomScale, randomScale, 1);
+                sprite.position.set(0, 0, 0);
+                scene.add(sprite);
+                tokenSprites.push(sprite);
+
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const speed = 10 + Math.random() * 25;
+
+                tokenDataList.push({
+                    vx: Math.sin(phi) * Math.cos(theta) * speed,
+                    vy: Math.sin(phi) * Math.sin(theta) * speed + (Math.random() * 8),
+                    vz: Math.cos(phi) * speed
+                });
+            }
+        }
+
+        let state = 'idle';
+        let transitionStart = 0;
+
+        const acceptBtn = document.getElementById('accept-btn');
+
+        acceptBtn.onclick = () => {
+            globalAudio = new Audio('miku.mpeg');
+            globalAudio.play().catch(error => {
+                console.log("Error al reproducir el audio:", error);
+            });
+
+            const intro = document.getElementById('intro-screen');
+            if (intro) {
+                intro.style.opacity = '0';
+                intro.style.transform = 'scale(1.2)';
+                setTimeout(() => { intro.style.display = 'none'; }, 1000);
+            }
+            state = 'sequence';
+            heartSystem.visible = true;
+            transitionStart = performance.now();
+        };
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+
+            let elapsed = 0;
+            if (state === 'sequence' || state === 'universe') {
+                elapsed = (now - transitionStart) / 1000;
+            }
+
+            if ((state === 'sequence' || state === 'universe') && elapsed >= 10.0 && !tokensActive) {
+                startTokenShow();
+            }
+
+            if (tokensActive) {
+                const dt = 0.016;
+                tokenSprites.forEach((sprite, index) => {
+                    const data = tokenDataList[index];
+                    sprite.position.x += data.vx * dt;
+                    sprite.position.y += data.vy * dt;
+                    sprite.position.z += data.vz * dt;
+
+                    if (Math.abs(sprite.position.x) > 110) data.vx *= -1;
+                    if (Math.abs(sprite.position.y) > 90) data.vy *= -1;
+                    if (Math.abs(sprite.position.z) > 110) data.vz *= -1;
+                });
+
+                if (globalAudio && globalAudio.ended) {
+                    tokensActive = false;
+                    tokenSprites.forEach(sprite => scene.remove(sprite));
+                    tokenSprites.length = 0;
+                    tokenDataList.length = 0;
+                }
+            }
+
+            if (state === 'sequence') {
+                const posAttr = particleGeometry.attributes.position;
+
+                if (elapsed <= 3.0) {
+                    const tunnelProgress = elapsed / 3.0;
+                    for (let i = 0; i < particleCount; i++) {
+                        const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+                        const d = tunnelData[i];
+                        
+                        d.zDepth += d.speed * 12;
+                        if (d.zDepth > 50) d.zDepth = -250;
+
+                        posAttr.array[ix] = Math.cos(d.angle + tunnelProgress * 5) * d.radius;
+                        posAttr.array[iy] = Math.sin(d.angle + tunnelProgress * 5) * d.radius;
+                        posAttr.array[iz] = d.zDepth;
+                    }
+                } else if (elapsed <= 6.0) {
+                    const expElapsed = elapsed - 3.0;
+                    const explosionPhase = Math.min(expElapsed / 1.2, 1);
+                    const returnPhase = Math.max(0, (expElapsed - 0.8) / 2.2);
+                    const easeReturn = 1 - Math.pow(1 - returnPhase, 3.5);
+
+                    for (let i = 0; i < particleCount; i++) {
+                        const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+                        const vel = explosionVelocities[i];
+
+                        const ex = vel.x * Math.sin(explosionPhase * Math.PI * 0.5);
+                        const ey = vel.y * Math.sin(explosionPhase * Math.PI * 0.5);
+                        const ez = vel.z * Math.sin(explosionPhase * Math.PI * 0.5);
+
+                        const tx = targetPositions[ix];
+                        const ty = targetPositions[iy];
+                        const tz = targetPositions[iz];
+
+                        posAttr.array[ix] = ex + (tx - ex) * easeReturn;
+                        posAttr.array[iy] = ey + (ty - ey) * easeReturn;
+                        posAttr.array[iz] = ez + (tz - ez) * easeReturn;
+                    }
+
+                    if (expElapsed > 1.2 && !universeGroup.visible) {
+                        universeGroup.visible = true;
+                    }
+                } else {
+                    state = 'universe';
+                    controls.enabled = true;
+                }
+                posAttr.needsUpdate = true;
+            }
+
+            if (state === 'universe' || state === 'sequence') {
+                const beat = 1 + Math.sin(now * 0.005) * 0.06;
+                heartSystem.scale.set(beat, beat, beat);
+
+                universeGroup.rotation.y += 0.001;
+                planets.forEach(planet => {
+                    planet.angle += planet.speed;
+                    planet.mesh.position.x = Math.cos(planet.angle) * planet.radius;
+                    planet.mesh.position.z = Math.sin(planet.angle) * planet.radius;
+                    planet.mesh.position.y = planet.yOffset;
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate(performance.now());
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
